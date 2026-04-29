@@ -1,6 +1,26 @@
 # kortex
 
-Claude Code plugin that indexes an Obsidian vault and exposes semantic memory tools (`save_memory`, `search`, `get_context`...) to any MCP-compatible LLM client.
+Claude Code plugin that gives Claude a persistent, searchable knowledge base backed by an Obsidian vault.
+
+## How it works
+
+When Claude Code starts, it automatically launches the kortex MCP server (declared in `.mcp.json`). The server exposes tools Claude can call during any session — no manual startup needed.
+
+Notes are stored as plain markdown in `~/kortex-kb/`, a standard Obsidian vault you can open, read, and edit directly in Obsidian. A file watcher keeps the index in sync with any edits made outside Claude.
+
+```
+Claude Code
+  └─ kortex MCP server (auto-started)
+       ├─ save_memory → writes .md to ~/kortex-kb/ + indexes it
+       ├─ search      → sqlite-vec (semantic) or FTS5 (fallback)
+       └─ status, get_context, recent, list_notes
+
+Obsidian → edits ~/kortex-kb/*.md → file watcher → re-index
+```
+
+Embeddings are generated locally via ollama (`nomic-embed-text`, 768-dim vectors stored in SQLite with sqlite-vec). If ollama is offline, keyword search (FTS5) is used as fallback.
+
+To open your vault in Obsidian: **Open folder as vault** → select `~/kortex-kb`.
 
 ## Installation
 
@@ -23,11 +43,12 @@ ollama pull nomic-embed-text
 **4. Install the plugin**
 ```sh
 git clone https://github.com/kodylabs/kortex
-claude plugin marketplace add ./kortex
+cd kortex
+claude plugin marketplace add .
 claude plugin install kortex@kortex
 ```
 
-Restart Claude Code — the kortex plugin is active.
+Restart Claude Code — the MCP server starts automatically and the tools are available.
 
 ## What the plugin adds
 
@@ -41,26 +62,9 @@ Restart Claude Code — the kortex plugin is active.
 
 ```sh
 bun run src/index.ts status    # vault stats, DB size, ollama health
-bun run src/index.ts rebuild   # re-index the vault
+bun run src/index.ts rebuild   # re-index the vault from scratch
 bun run src/index.ts config    # show active config
 ```
-
-## How it works
-
-Notes are stored as plain markdown in `~/kortex-kb/` — a standard Obsidian vault you can open directly in Obsidian to read, edit, and organize your knowledge.
-
-When a note is saved (via `save_memory` or edited manually in Obsidian), kortex:
-1. Splits the content into overlapping text chunks
-2. Sends each chunk to ollama (`nomic-embed-text`) to get a 768-dim embedding vector
-3. Stores the chunk text + vector in SQLite via the `sqlite-vec` extension
-
-At search time, your query is embedded the same way and compared against all stored vectors (cosine similarity). If ollama is offline, keyword search (FTS5) is used as fallback.
-
-```
-Obsidian ←→ ~/kortex-kb/*.md ←→ kortex (sqlite-vec index) ←→ Claude
-```
-
-To open your vault in Obsidian: **Open folder as vault** → select `~/kortex-kb`.
 
 ## Configuration
 

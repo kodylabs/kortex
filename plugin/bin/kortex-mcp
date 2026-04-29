@@ -1,4 +1,3 @@
 #!/bin/sh
-# plugin/bin/ → go up 2 levels to reach repo root where src/ lives
-REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-exec bun run "$REPO_ROOT/src/index.ts" "$@"
+PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+exec bun run "$PLUGIN_ROOT/src/index.ts" "$@"
