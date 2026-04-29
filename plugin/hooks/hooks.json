@@ -1,0 +1,15 @@
+{
+  "description": "Kortex auto-save prompt on session end",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/kortex-stop-hook.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

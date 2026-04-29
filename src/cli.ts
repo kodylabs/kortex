@@ -3,10 +3,8 @@ import { loadConfig } from "./lib/config.js";
 import { rebuildIndex } from "./lib/watcher.js";
 import { getDb, getRecentNotes } from "./lib/db.js";
 import { isOllamaAvailable } from "./lib/ollama.js";
-import { statSync, existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
-import { join, dirname, resolve } from "path";
-import { homedir } from "os";
-import { fileURLToPath } from "url";
+import { statSync, existsSync, mkdirSync } from "fs";
+import { join, resolve } from "path";
 
 export function runCli(): void {
   program
@@ -35,9 +33,7 @@ export function runCli(): void {
         .get() as { total: number };
 
       const { files } = db
-        .prepare(
-          "SELECT COUNT(DISTINCT filepath) as files FROM chunks"
-        )
+        .prepare("SELECT COUNT(DISTINCT filepath) as files FROM chunks")
         .get() as { files: number };
 
       const dbPath = join(config.vault_path, ".knowledge", "db.sqlite");
@@ -70,106 +66,99 @@ export function runCli(): void {
 
   program
     .command("setup")
-    .description("One-command install: ollama service, vault, MCP registration, Claude Code skill")
+    .description("One-command install: ollama service, vault init, Claude Code plugin registration")
     .action(async () => {
       console.log("kortex-mcp setup\n");
 
       // ── Step 1: Ollama systemd service ─────────────────────────────────────
-      console.log("1/5  Ollama service…");
-      const ollamaInstalled = existsSync("/usr/local/bin/ollama") || Boolean(
-        await Bun.$`which ollama`.quiet().catch(() => null)
-      );
+      console.log("1/4  Ollama service…");
+      const ollamaInstalled =
+        existsSync("/usr/local/bin/ollama") ||
+        Boolean(await Bun.$`which ollama`.quiet().catch(() => null));
 
       if (!ollamaInstalled) {
-        console.log("     ✗ ollama non trouvé — installe-le depuis https://ollama.com puis relance setup");
+        console.log(
+          "     ✗ ollama not found — install it from https://ollama.com then re-run setup"
+        );
       } else {
         // Enable and start the systemd service; requires sudo on most systems
-        const enable = await Bun.$`sudo systemctl enable --now ollama`.quiet().catch((e: Error) => e);
+        const enable = await Bun.$`sudo systemctl enable --now ollama`
+          .quiet()
+          .catch((e: Error) => e);
         if (enable instanceof Error) {
-          console.log("     ⚠ sudo non disponible — lance manuellement :");
+          console.log("     ⚠ sudo unavailable — run manually:");
           console.log("       sudo systemctl enable --now ollama");
         } else {
-          console.log("     ✓ service ollama activé et démarré (boot automatique)");
+          console.log("     ✓ ollama service enabled and started (auto-start on boot)");
         }
 
         // Confirm the API is reachable after (re)starting
         await new Promise((r) => setTimeout(r, 1500));
         const alive = await fetch("http://127.0.0.1:11434/api/tags", {
           signal: AbortSignal.timeout(4_000),
-        }).then((r) => r.ok).catch(() => false);
-        console.log(`     ${alive ? "✓ ollama répond sur :11434" : "⚠ ollama ne répond pas encore (démarre peut-être)"}`);
+        })
+          .then((r) => r.ok)
+          .catch(() => false);
+        console.log(
+          `     ${alive ? "✓ ollama responding on :11434" : "⚠ ollama not responding yet (may still be starting)"}`
+        );
       }
 
       // ── Step 2: Embedding model ────────────────────────────────────────────
-      console.log("\n2/5  Modèle nomic-embed-text…");
+      console.log("\n2/4  Modèle nomic-embed-text…");
       const config = loadConfig();
       const listResult = await Bun.$`ollama list`.quiet().catch(() => null);
-      const modelPresent = listResult?.stdout.toString().includes("nomic-embed-text") ?? false;
+      const modelPresent =
+        listResult?.stdout.toString().includes("nomic-embed-text") ?? false;
 
       if (modelPresent) {
-        console.log("     ✓ déjà présent");
+        console.log("     ✓ already present");
       } else {
-        console.log("     → ollama pull nomic-embed-text (peut prendre quelques minutes)…");
+        console.log("     → ollama pull nomic-embed-text (may take a few minutes)…");
         const pull = await Bun.$`ollama pull nomic-embed-text`.catch((e: Error) => e);
         if (pull instanceof Error) {
-          console.log("     ⚠ échec du pull — lance manuellement : ollama pull nomic-embed-text");
+          console.log(
+            "     ⚠ pull failed — run manually: ollama pull nomic-embed-text"
+          );
         } else {
-          console.log("     ✓ modèle téléchargé");
+          console.log("     ✓ model downloaded");
         }
       }
 
       // ── Step 3: Vault & DB ─────────────────────────────────────────────────
-      console.log("\n3/5  Vault & base de données…");
+      console.log("\n3/4  Vault & base de données…");
       for (const sub of ["projects", "concepts", "perso"]) {
         mkdirSync(join(config.vault_path, sub), { recursive: true });
       }
       getDb(config); // initialises schema
-      console.log(`     ✓ vault : ${config.vault_path}`);
-      console.log(`     ✓ DB initialisée`);
+      console.log(`     ✓ vault: ${config.vault_path}`);
+      console.log(`     ✓ DB initialized`);
 
-      // ── Step 4: MCP registration in ~/.claude/settings.json ───────────────
-      console.log("\n4/5  Enregistrement MCP dans ~/.claude/settings.json…");
-      const settingsPath = join(homedir(), ".claude", "settings.json");
-      // Absolute path to this project's entry point
-      const entryPoint = resolve(
-        dirname(fileURLToPath(import.meta.url)),
-        "index.ts"
-      );
-      const mcpEntry = { command: "bun", args: ["run", entryPoint] };
+      // ── Step 4: Plugin install via claude CLI ──────────────────────────────
+      console.log("\n4/4  Claude Code plugin…");
+      const pluginPath = resolve(import.meta.dir, "..", "plugin");
 
-      let settings: Record<string, unknown> = {};
-      if (existsSync(settingsPath)) {
-        settings = JSON.parse(readFileSync(settingsPath, "utf-8")) as Record<string, unknown>;
+      const installResult = await Bun.$`claude plugin add ${pluginPath}`
+        .quiet()
+        .catch((e: Error) => e);
+      if (installResult instanceof Error) {
+        console.log("     ⚠ claude CLI not found — install manually:");
+        console.log(`       claude plugin add ${pluginPath}`);
+      } else {
+        console.log("     ✓ kortex plugin installed (restart Claude Code to activate)");
       }
 
-      const mcpServers = (settings.mcpServers ?? {}) as Record<string, unknown>;
-      const alreadyRegistered = JSON.stringify(mcpServers.kortex) === JSON.stringify(mcpEntry);
-
-      mcpServers.kortex = mcpEntry;
-      settings.mcpServers = mcpServers;
-      writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n", "utf-8");
-      console.log(`     ${alreadyRegistered ? "✓ déjà enregistré" : "✓ kortex ajouté"} → relance Claude Code pour activer`);
-
-      // ── Step 5: Claude Code skill ──────────────────────────────────────────
-      console.log("\n5/5  Skill Claude Code…");
-      const skillDir = join(homedir(), ".claude", "skills", "kortex");
-      const skillDest = join(skillDir, "SKILL.md");
-      const skillSrc = join(dirname(fileURLToPath(import.meta.url)), "templates", "kortex-skill.md");
-
-      mkdirSync(skillDir, { recursive: true });
-      writeFileSync(skillDest, readFileSync(skillSrc, "utf-8"), "utf-8");
-      console.log(`     ✓ skill installé → ~/.claude/skills/kortex/SKILL.md`);
-
-      // ── Summary ────────────────────────────────────────────────────────────
       console.log("\n─────────────────────────────────");
-      console.log("Setup terminé !\n");
+      console.log("Setup complete!\n");
       console.log(`  Vault    ${config.vault_path}`);
-      console.log(`  Modèle   ${config.embedding_model}`);
+      console.log(`  Model    ${config.embedding_model}`);
       console.log(`  Config   ~/.kortex-mcp/config.json`);
-      console.log("\nProchaines étapes :");
-      console.log("  1. Relance Claude Code (le MCP kortex sera disponible)");
-      console.log("  2. Lance /kortex dans une conversation pour voir le skill");
-      console.log("  3. kortex-mcp status  — pour vérifier l'état du système");
+      console.log(`  Plugin   ${pluginPath}`);
+      console.log("\nNext steps:");
+      console.log("  1. Restart Claude Code (kortex plugin active)");
+      console.log("  2. /kortex:kortex — usage skill");
+      console.log("  3. bun run src/index.ts status");
+
     });
 
   program.parse(process.argv);
