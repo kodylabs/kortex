@@ -3,7 +3,7 @@ import { loadConfig } from "./lib/config.js";
 import { rebuildIndex } from "./lib/watcher.js";
 import { getDb, getRecentNotes } from "./lib/db.js";
 import { isOllamaAvailable } from "./lib/ollama.js";
-import { statSync, existsSync, mkdirSync, readFileSync, writeFileSync, cpSync } from "fs";
+import { statSync, existsSync, mkdirSync, writeFileSync, cpSync } from "fs";
 import { join, resolve } from "path";
 import { homedir } from "os";
 
