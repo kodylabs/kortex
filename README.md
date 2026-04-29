@@ -1,47 +1,70 @@
 # kortex
 
-Plugin Claude Code qui indexe un vault Obsidian et expose des outils de mémoire sémantique (`save_memory`, `search`, `get_context`...) à tout LLM client MCP.
-
-## Prérequis
-
-- [Bun](https://bun.com) ≥ 1.3
-- [Ollama](https://ollama.com) (embeddings — FTS5 utilisé en fallback si offline)
+Claude Code plugin that indexes an Obsidian vault and exposes semantic memory tools (`save_memory`, `search`, `get_context`...) to any MCP-compatible LLM client.
 
 ## Installation
 
+**1. Install Bun**
 ```sh
-bun install
-bun run src/index.ts setup
+curl -fsSL https://bun.sh/install | bash
 ```
 
-Le `setup` :
-1. Active le service ollama systemd (démarrage auto au boot)
-2. Télécharge le modèle `nomic-embed-text`
-3. Crée `~/kortex-kb/` et initialise la base SQLite
-4. Installe le plugin dans Claude Code via `claude plugin add`
+**2. Install Ollama and enable auto-start**
+```sh
+curl -fsSL https://ollama.com/install.sh | sh
+sudo systemctl enable --now ollama
+```
 
-Relance Claude Code — le plugin kortex est actif.
+**3. Pull the embedding model**
+```sh
+ollama pull nomic-embed-text
+```
 
-## Ce que le plugin ajoute
+**4. Install the plugin**
+```sh
+git clone https://github.com/kodylabs/kortex
+claude plugin marketplace add ./kortex
+claude plugin install kortex@kortex
+```
 
-| Composant | Description |
+Restart Claude Code — the kortex plugin is active.
+
+## What the plugin adds
+
+| Component | Description |
 |---|---|
-| Outils MCP | `save_memory`, `search`, `get_context`, `recent`, `list_notes` |
-| Skill `/kortex:kortex` | Guide Claude sur quand sauvegarder / chercher |
-| Stop hook | En fin de session, Claude décide quoi persister |
+| MCP tools | `save_memory`, `search`, `get_context`, `recent`, `list_notes`, `status` |
+| Skill `/kortex:kortex` | Guides Claude on when to save / search |
+| Stop hook | At session end, Claude decides what to persist |
 
 ## CLI
 
 ```sh
-bun run src/index.ts setup     # setup initial (idempotent)
-bun run src/index.ts status    # stats vault, DB, ollama
-bun run src/index.ts rebuild   # ré-indexe le vault
-bun run src/index.ts config    # config active
+bun run src/index.ts status    # vault stats, DB size, ollama health
+bun run src/index.ts rebuild   # re-index the vault
+bun run src/index.ts config    # show active config
 ```
+
+## How it works
+
+Notes are stored as plain markdown in `~/kortex-kb/` — a standard Obsidian vault you can open directly in Obsidian to read, edit, and organize your knowledge.
+
+When a note is saved (via `save_memory` or edited manually in Obsidian), kortex:
+1. Splits the content into overlapping text chunks
+2. Sends each chunk to ollama (`nomic-embed-text`) to get a 768-dim embedding vector
+3. Stores the chunk text + vector in SQLite via the `sqlite-vec` extension
+
+At search time, your query is embedded the same way and compared against all stored vectors (cosine similarity). If ollama is offline, keyword search (FTS5) is used as fallback.
+
+```
+Obsidian ←→ ~/kortex-kb/*.md ←→ kortex (sqlite-vec index) ←→ Claude
+```
+
+To open your vault in Obsidian: **Open folder as vault** → select `~/kortex-kb`.
 
 ## Configuration
 
-`~/.kortex-mcp/config.json` (créé au premier lancement) :
+`~/.kortex-mcp/config.json` (created on first run):
 
 ```json
 {
