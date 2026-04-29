@@ -9,6 +9,7 @@ import { loadConfig } from "./lib/config.js";
 import { saveMemory } from "./tools/save-memory.js";
 import { search } from "./tools/search.js";
 import { getContext, recent, listNotesTool } from "./tools/context.js";
+import { getStatus } from "./tools/status.js";
 import { runCli } from "./cli.js";
 
 // CLI mode: if args are passed, delegate to commander (rebuild, status, config)
@@ -102,6 +103,12 @@ async function startMcpServer(): Promise<void> {
           },
         },
       },
+      {
+        name: "status",
+        description:
+          "Show vault health: file count, chunk count, DB size, ollama availability, and recent notes.",
+        inputSchema: { type: "object", properties: {} },
+      },
     ],
   }));
 
@@ -155,6 +162,13 @@ async function startMcpServer(): Promise<void> {
             (args ?? {}) as unknown as Parameters<typeof listNotesTool>[0],
             config
           );
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        }
+
+        case "status": {
+          const result = await getStatus(config);
           return {
             content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
           };

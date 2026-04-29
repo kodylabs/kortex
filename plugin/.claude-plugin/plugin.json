@@ -1,0 +1,9 @@
+{
+  "name": "kortex",
+  "description": "Local semantic knowledge base — indexes a vault and exposes save_memory, search, and context tools.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Kyllian Senrens"
+  },
+  "license": "MIT"
+}

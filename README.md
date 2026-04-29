@@ -1,63 +1,80 @@
-# kortex-mcp
+# kortex
 
-Serveur MCP local qui indexe un vault Obsidian et expose des outils de mémoire sémantique à n'importe quel LLM client compatible MCP (Claude Code, Cursor, OpenCode).
+Claude Code plugin that gives Claude a persistent, searchable knowledge base backed by an Obsidian vault.
 
-## Prérequis
+## How it works
 
-- [Bun](https://bun.com) ≥ 1.3
-- [Ollama](https://ollama.com) (pour les embeddings sémantiques — facultatif, FTS5 utilisé en fallback)
+When Claude Code starts, it automatically launches the kortex MCP server (declared in `.mcp.json`). The server exposes tools Claude can call during any session — no manual startup needed.
 
-## Installation en une commande
+Notes are stored as plain markdown in `~/kortex-kb/`, a standard Obsidian vault you can open, read, and edit directly in Obsidian. A file watcher keeps the index in sync with any edits made outside Claude.
 
-```sh
-bun install
-bun run src/index.ts setup
+```
+Claude Code
+  └─ kortex MCP server (auto-started)
+       ├─ save_memory → writes .md to ~/kortex-kb/ + indexes it
+       ├─ search      → sqlite-vec (semantic) or FTS5 (fallback)
+       └─ status, get_context, recent, list_notes
+
+Obsidian → edits ~/kortex-kb/*.md → file watcher → re-index
 ```
 
-Le `setup` effectue automatiquement :
+Embeddings are generated locally via ollama (`nomic-embed-text`, 768-dim vectors stored in SQLite with sqlite-vec). If ollama is offline, keyword search (FTS5) is used as fallback.
 
-1. **Ollama** — active le service systemd (`sudo systemctl enable --now ollama`) pour qu'il démarre au boot
-2. **Modèle** — télécharge `nomic-embed-text` si absent (`ollama pull nomic-embed-text`)
-3. **Vault** — crée `~/kortex-kb/{projects,concepts,perso}` et initialise la base SQLite
-4. **MCP** — enregistre le serveur dans `~/.claude/settings.json` (relancer Claude Code pour activer)
-5. **Skill** — installe `~/.claude/skills/kortex/SKILL.md` pour l'usage proactif dans Claude Code
+To open your vault in Obsidian: **Open folder as vault** → select `~/kortex-kb`.
+
+## Installation
+
+**1. Install Bun**
+```sh
+curl -fsSL https://bun.sh/install | bash
+```
+
+**2. Install Ollama and enable auto-start**
+```sh
+curl -fsSL https://ollama.com/install.sh | sh
+sudo systemctl enable --now ollama
+```
+
+**3. Pull the embedding model**
+```sh
+ollama pull nomic-embed-text
+```
+
+**4. Install the plugin**
+```sh
+git clone https://github.com/kodylabs/kortex
+cd kortex
+claude plugin marketplace add .
+claude plugin install kortex@kortex
+```
+
+Restart Claude Code — the MCP server starts automatically and the tools are available.
+
+## What the plugin adds
+
+| Component | Description |
+|---|---|
+| MCP tools | `save_memory`, `search`, `get_context`, `recent`, `list_notes`, `status` |
+| Skill `/kortex:kortex` | Guides Claude on when to save / search |
+| Stop hook | At session end, Claude decides what to persist |
 
 ## CLI
 
 ```sh
-bun run src/index.ts status    # stats vault, taille DB, santé ollama
-bun run src/index.ts rebuild   # ré-indexe tous les fichiers du vault
-bun run src/index.ts config    # affiche la configuration active
-bun run src/index.ts setup     # setup complet (idempotent, relançable)
+bun run src/index.ts status    # vault stats, DB size, ollama health
+bun run src/index.ts rebuild   # re-index the vault from scratch
+bun run src/index.ts config    # show active config
 ```
 
 ## Configuration
 
-Fichier : `~/.kortex-mcp/config.json` (créé automatiquement au premier lancement)
+`~/.kortex-mcp/config.json` (created on first run):
 
 ```json
 {
   "vault_path": "~/kortex-kb",
   "ollama_url": "http://127.0.0.1:11434",
   "embedding_model": "nomic-embed-text",
-  "fallback_search": "fts5",
-  "chunk_size": 500,
-  "chunk_overlap": 50
+  "fallback_search": "fts5"
 }
 ```
-
-## Outils MCP exposés
-
-| Outil | Description |
-|---|---|
-| `save_memory` | Sauvegarde une note dans le vault + l'indexe |
-| `search` | Recherche sémantique (ou FTS5 si ollama offline) |
-| `get_context` | Résumé hot.md + notes récentes d'un projet |
-| `recent` | N notes les plus récentes |
-| `list_notes` | Navigation par projet / tags |
-
-## Architecture
-
-Vault Obsidian (`~/kortex-kb/`) comme source de vérité (markdown lisible),
-SQLite + sqlite-vec pour l'index sémantique (reconstruit depuis le vault à tout moment via `rebuild`).
-Un file watcher re-indexe automatiquement les fichiers édités dans Obsidian.
