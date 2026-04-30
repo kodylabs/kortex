@@ -20,25 +20,12 @@ Obsidian → edits ~/kortex-kb/*.md → file watcher → re-index
 
 Embeddings are generated locally via ollama (`nomic-embed-text`, 768-dim vectors stored in SQLite with sqlite-vec). If ollama is offline, keyword search (FTS5) is used as fallback.
 
-To open your vault in Obsidian: **Open folder as vault** → select `~/kortex-kb`.
-
-## Installation
-
-**1. Install Bun**
-```sh
-curl -fsSL https://bun.sh/install | bash
-```
-
-**2. Install Ollama and enable auto-start**
-```sh
-curl -fsSL https://ollama.com/install.sh | sh
-sudo systemctl enable --now ollama
-```
-
 **3. Pull the embedding model**
 ```sh
 ollama pull nomic-embed-text
 ```
+
+### Claude Code (recommended)
 
 **4. Install the plugin**
 ```sh
@@ -50,13 +37,24 @@ claude plugin install kortex@kortex
 
 Restart Claude Code — the MCP server starts automatically and the tools are available.
 
+### OpenCode
+
+**4. Clone and run setup**
+```sh
+git clone https://github.com/kodylabs/kortex
+cd kortex/plugin && bun install
+bun run src/index.ts setup --opencode
+```
+
+This registers the MCP server in `~/.config/opencode/opencode.jsonc`, installs the usage skill, and installs the session hook that prompts Claude to persist knowledge at session end.
+
 ## What the plugin adds
 
-| Component | Description |
-|---|---|
-| MCP tools | `save_memory`, `search`, `get_context`, `recent`, `list_notes`, `status` |
-| Skill `/kortex:kortex` | Guides Claude on when to save / search |
-| Stop hook | At session end, Claude decides what to persist |
+| Component | Claude Code | OpenCode |
+|---|---|---|
+| MCP tools (`save_memory`, `search`, `get_context`, `recent`, `list_notes`, `status`) | ✓ | ✓ |
+| Usage skill | `/kortex:kortex` skill | `~/.config/opencode/skills/kortex/` |
+| Session hook (auto-persist prompt) | Stop hook (`hooks/`) | TypeScript plugin (`plugins/`) |
 
 ## CLI
 
