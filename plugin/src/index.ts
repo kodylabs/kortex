@@ -6,6 +6,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { loadConfig } from "./lib/config.js";
+import { startWatcher, syncVault } from "./lib/watcher.js";
 import { saveMemory } from "./tools/save-memory.js";
 import { search } from "./tools/search.js";
 import { getContext, recent, listNotesTool } from "./tools/context.js";
@@ -191,4 +192,8 @@ async function startMcpServer(): Promise<void> {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
+
+  void syncVault(config);
+  startWatcher(config);
+  setInterval(() => void syncVault(config), 5 * 60 * 1000); // sync the vault every 30 minutes
 }
