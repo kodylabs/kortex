@@ -6,6 +6,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { loadConfig } from "./lib/config.js";
+import { startWatcher, syncVault } from "./lib/watcher.js";
 import { saveMemory } from "./tools/save-memory.js";
 import { search } from "./tools/search.js";
 import { getContext, recent, listNotesTool } from "./tools/context.js";
@@ -109,6 +110,12 @@ async function startMcpServer(): Promise<void> {
           "Show vault health: file count, chunk count, DB size, ollama availability, and recent notes.",
         inputSchema: { type: "object", properties: {} },
       },
+      {
+        name: "sync",
+        description:
+          "Manually trigger a full vault sync — re-indexes changed files and removes deleted ones.",
+        inputSchema: { type: "object", properties: {} },
+      },
     ],
   }));
 
@@ -174,6 +181,14 @@ async function startMcpServer(): Promise<void> {
           };
         }
 
+        case "sync": {
+          await syncVault(config);
+          const result = await getStatus(config);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        }
+
         default:
           return {
             content: [{ type: "text", text: `Unknown tool: ${name}` }],
@@ -191,4 +206,8 @@ async function startMcpServer(): Promise<void> {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
+
+  void syncVault(config);
+  startWatcher(config);
+  setInterval(() => void syncVault(config), 30 * 60 * 1000); // sync the vault every 30 minutes
 }

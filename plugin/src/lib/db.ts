@@ -63,8 +63,33 @@ export function getDb(config: Config): Database {
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS files (
+      filepath TEXT PRIMARY KEY,
+      hash TEXT NOT NULL,
+      indexed_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   _db = db;
   return db;
+}
+
+export function getFileHash(db: Database, filepath: string): string | null {
+  const row = db.prepare("SELECT hash FROM files WHERE filepath = ?").get(filepath) as { hash: string } | undefined;
+  return row?.hash ?? null;
+}
+
+export function setFileHash(db: Database, filepath: string, hash: string): void {
+  db.prepare("INSERT OR REPLACE INTO files (filepath, hash) VALUES (?, ?)").run(filepath, hash);
+}
+
+export function deleteFileRecord(db: Database, filepath: string): void {
+  db.prepare("DELETE FROM files WHERE filepath = ?").run(filepath);
+}
+
+export function getAllIndexedFilepaths(db: Database): string[] {
+  return (db.prepare("SELECT filepath FROM files").all() as { filepath: string }[]).map(r => r.filepath);
 }
 
 export function upsertChunks(
