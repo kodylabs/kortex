@@ -195,5 +195,5 @@ async function startMcpServer(): Promise<void> {
 
   void syncVault(config);
   startWatcher(config);
-  setInterval(() => void syncVault(config), 5 * 60 * 1000); // sync the vault every 30 minutes
+  setInterval(() => void syncVault(config), 30 * 60 * 1000); // sync the vault every 30 minutes
 }
