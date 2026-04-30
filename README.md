@@ -55,6 +55,8 @@ sudo systemctl enable --now ollama
 ollama pull nomic-embed-text
 ```
 
+### Claude Code (recommended)
+
 **4. Install the plugin**
 ```sh
 git clone https://github.com/kodylabs/kortex
@@ -64,6 +66,17 @@ claude plugin install kortex@kortex
 ```
 
 Restart Claude Code — the MCP server starts automatically and the tools are available.
+
+### OpenCode
+
+**4. Clone and run setup**
+```sh
+git clone https://github.com/kodylabs/kortex
+cd kortex/plugin && bun install
+bun run src/index.ts setup --opencode
+```
+
+This registers the MCP server in `~/.config/opencode/opencode.jsonc`, installs the usage skill, and installs the session hook that prompts Claude to persist knowledge at session end.
 
 ## What the plugin adds
 
