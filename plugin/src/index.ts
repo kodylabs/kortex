@@ -110,6 +110,12 @@ async function startMcpServer(): Promise<void> {
           "Show vault health: file count, chunk count, DB size, ollama availability, and recent notes.",
         inputSchema: { type: "object", properties: {} },
       },
+      {
+        name: "sync",
+        description:
+          "Manually trigger a full vault sync — re-indexes changed files and removes deleted ones.",
+        inputSchema: { type: "object", properties: {} },
+      },
     ],
   }));
 
@@ -169,6 +175,14 @@ async function startMcpServer(): Promise<void> {
         }
 
         case "status": {
+          const result = await getStatus(config);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        }
+
+        case "sync": {
+          await syncVault(config);
           const result = await getStatus(config);
           return {
             content: [{ type: "text", text: JSON.stringify(result, null, 2) }],

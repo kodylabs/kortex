@@ -28,7 +28,8 @@ The index is kept up to date through three mechanisms:
 |---|---|
 | Server startup | Full vault scan — re-indexes any file whose SHA-256 hash changed since last run |
 | File watcher (chokidar) | Real-time: re-indexes on `add`/`change`, removes deleted files immediately |
-| Periodic timer | Full scan every 30 minutes as a safety net |
+| Periodic timer | Full scan every 5 minutes as a safety net |
+| `sync` tool | Manual trigger — Claude can call it on demand |
 
 Hash-based diffing means only modified files are re-embedded — unchanged files are skipped. The SQLite DB runs in WAL mode so the watcher and MCP tools can write concurrently without blocking each other.
 
@@ -68,7 +69,7 @@ Restart Claude Code — the MCP server starts automatically and the tools are av
 
 | Component | Description |
 |---|---|
-| MCP tools | `save_memory`, `search`, `get_context`, `recent`, `list_notes`, `status` |
+| MCP tools | `save_memory`, `search`, `get_context`, `recent`, `list_notes`, `status`, `sync` |
 | Skill `/kortex:kortex` | Guides Claude on when to save / search |
 | Stop hook | At session end, Claude decides what to persist |
 
