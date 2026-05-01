@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
+import { McpServer, StdioServerTransport } from '@modelcontextprotocol/server';
+import * as z from 'zod/v4';
 import { loadConfig } from "./lib/config.js";
 import { startWatcher, syncVault } from "./lib/watcher.js";
 import { saveMemory } from "./tools/save-memory.js";
@@ -31,12 +30,12 @@ async function startMcpServer(): Promise<void> {
     {
       title: "Save Memory",
       description: "Persist knowledge to the vault: architecture decisions, patterns, project context, personal notes.",
-      inputSchema: {
+      inputSchema: z.object({
         content: z.string().describe("Content to save"),
         title: z.string().optional().describe("Optional title — auto-generated if omitted"),
         tags: z.array(z.string()).optional().describe('e.g. ["architecture", "decision"]'),
         project: z.string().optional().describe("Routes note to projects/<project>/ folder"),
-      },
+      }),
     },
     async (args) => {
       const result = await saveMemory(args, config);
@@ -49,11 +48,11 @@ async function startMcpServer(): Promise<void> {
     {
       title: "Search",
       description: "Semantic (or keyword) search over the knowledge vault. Call before answering questions that may have been covered before.",
-      inputSchema: {
+      inputSchema: z.object({
         query: z.string(),
         project: z.string().optional().describe("Filter by project"),
         limit: z.number().optional().describe("Max results (default: 5)"),
-      },
+      }),
     },
     async (args) => {
       const result = await search(args, config);
@@ -66,9 +65,9 @@ async function startMcpServer(): Promise<void> {
     {
       title: "Get Context",
       description: "Get hot.md summary + recent notes for a specific project.",
-      inputSchema: {
+      inputSchema: z.object({
         project: z.string(),
-      },
+      }),
     },
     (args) => {
       const result = getContext(args, config);
@@ -81,10 +80,10 @@ async function startMcpServer(): Promise<void> {
     {
       title: "Recent",
       description: "List the N most recently saved notes.",
-      inputSchema: {
+      inputSchema: z.object({
         n: z.number().optional().describe("Number of notes (default: 10)"),
         project: z.string().optional().describe("Filter by project"),
-      },
+      }),
     },
     (args) => {
       const result = recent(args, config);
@@ -97,10 +96,10 @@ async function startMcpServer(): Promise<void> {
     {
       title: "List Notes",
       description: "Browse all notes, optionally filtered by project or tags.",
-      inputSchema: {
+      inputSchema: z.object({
         project: z.string().optional(),
         tags: z.array(z.string()).optional(),
-      },
+      }),
     },
     (args) => {
       const result = listNotesTool(args, config);
@@ -113,7 +112,7 @@ async function startMcpServer(): Promise<void> {
     {
       title: "Status",
       description: "Show vault health: file count, chunk count, DB size, ollama availability, and recent notes.",
-      inputSchema: {},
+      inputSchema: z.object({}),
     },
     async () => {
       const result = await getStatus(config);
@@ -126,7 +125,7 @@ async function startMcpServer(): Promise<void> {
     {
       title: "Sync",
       description: "Manually trigger a full vault sync — re-indexes changed files and removes deleted ones.",
-      inputSchema: {},
+      inputSchema: z.object({}),
     },
     async () => {
       await syncVault(config);

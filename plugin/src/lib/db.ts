@@ -153,17 +153,15 @@ export function semanticSearch(
           SELECT c.content, c.filepath, c.tags, v.distance as score
           FROM chunks_vec v
           JOIN chunks c ON c.id = v.rowid
-          WHERE v.embedding MATCH ? AND c.project = ?
+          WHERE v.embedding MATCH ? AND k = ? AND c.project = ?
           ORDER BY v.distance
-          LIMIT ?
-        `).all(vec, project, limit)
+        `).all(vec, limit, project)
       : db.query(`
           SELECT c.content, c.filepath, c.tags, v.distance as score
           FROM chunks_vec v
           JOIN chunks c ON c.id = v.rowid
-          WHERE v.embedding MATCH ?
+          WHERE v.embedding MATCH ? AND k = ?
           ORDER BY v.distance
-          LIMIT ?
         `).all(vec, limit)
   ) as Row[];
 
