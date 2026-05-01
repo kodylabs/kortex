@@ -1,6 +1,12 @@
 {
-  "kortex": {
-    "command": "/bin/bash",
-    "args": ["-lc", "exec bun run $CLAUDE_PLUGIN_ROOT/src/index.ts"]
-  }
+    "name": "kortex",
+    "mcpServers": {
+        "kortex-mcp": {
+            "command": "/bin/bash",
+            "args": [
+                "-lc",
+                "exec bun run $CLAUDE_PLUGIN_ROOT/src/index.ts"
+            ]
+        }
+    }
 }
