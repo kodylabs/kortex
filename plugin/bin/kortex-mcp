@@ -1,3 +1,0 @@
-#!/bin/sh
-PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-exec bun run "$PLUGIN_ROOT/src/index.ts" "$@"
