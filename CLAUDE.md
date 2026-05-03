@@ -1,7 +1,7 @@
 
-# kortex-mcp
+# kortex
 
-Local MCP server — indexes an Obsidian vault and exposes semantic memory tools to LLM clients.
+A shared knowledge base co-written by the user and the LLM — plain Obsidian vault on disk, semantic index in SQLite, exposed to clients (Claude Code, OpenCode) via MCP. Both sides read and write; neither owns the vault alone.
 
 ## MCP client setup (Claude Code / Cursor / OpenCode)
 

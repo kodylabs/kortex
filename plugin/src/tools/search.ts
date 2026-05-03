@@ -2,15 +2,16 @@ import { getEmbedding, isOllamaAvailable } from "../lib/ollama.js";
 import { getDb, semanticSearch, ftsSearch } from "../lib/db.js";
 import type { Config } from "../lib/config.js";
 import type { SearchResult } from "../lib/db.js";
+import * as z from 'zod/v4';
 
-interface SearchArgs {
-  query: string;
-  project?: string;
-  limit?: number;
-}
+export const searchSchema = z.object({
+  query: z.string().describe("Search query"),
+  project: z.string().optional().describe("Filter by project"),
+  limit: z.number().optional().describe("Max results (default: 5)"),
+});
 
 export async function search(
-  args: SearchArgs,
+  args: z.infer<typeof searchSchema>,
   config: Config
 ): Promise<{ chunks: SearchResult[]; mode: "semantic" | "fts5" }> {
   const db = getDb(config);

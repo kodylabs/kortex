@@ -3,11 +3,20 @@ import { McpServer, StdioServerTransport } from '@modelcontextprotocol/server';
 import * as z from 'zod/v4';
 import { loadConfig } from "./lib/config.js";
 import { startWatcher, syncVault } from "./lib/watcher.js";
-import { saveMemory } from "./tools/save-memory.js";
 import { search } from "./tools/search.js";
-import { getContext, recent, listNotesTool } from "./tools/context.js";
+import { getContext, recent, listNotesTool, getContextSchema, recentSchema } from "./tools/context.js";
+import { listNotesSchema } from "./tools/context.js";
 import { getStatus } from "./tools/status.js";
+import { readNote } from "./tools/read-note.js";
+import { updateNote } from "./tools/update-note.js";
+import { deleteNote } from "./tools/delete-note.js";
 import { runCli } from "./cli.js";
+import { createNote } from './tools/create-note.js';
+import { createNoteSchema } from './tools/create-note.js';
+import { readNoteSchema } from './tools/read-note.js';
+import { updateNoteSchema } from './tools/update-note.js';
+import { deleteNoteSchema } from './tools/delete-note.js';
+import { searchSchema } from './tools/search.js';
 
 if (process.argv.length > 2) {
   runCli();
@@ -26,20 +35,63 @@ async function startMcpServer(): Promise<void> {
   });
 
   server.registerTool(
-    "save_memory",
+    "create_note",
     {
-      title: "Save Memory",
-      description: "Persist knowledge to the vault: architecture decisions, patterns, project context, personal notes.",
-      inputSchema: z.object({
-        content: z.string().describe("Content to save"),
-        title: z.string().optional().describe("Optional title — auto-generated if omitted"),
-        tags: z.array(z.string()).optional().describe('e.g. ["architecture", "decision"]'),
-        project: z.string().optional().describe("Routes note to projects/<project>/ folder"),
-      }),
+      title: "Create Note",
+      description: "Create a new note in the vault.",
+      inputSchema: createNoteSchema,
     },
     async (args) => {
-      const result = await saveMemory(args, config);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      const result = await createNote(args, config);
+      return {
+        content: [{ type: "text", text: `Note created: ${result.filepath}` }],
+        structuredOutput: result,
+      };
+    }
+  );
+
+  server.registerTool(
+    "read_note",
+    {
+      title: "Read Note",
+      description: "Read a note from the vault.",
+      inputSchema: readNoteSchema,
+    },
+    async (args) => {
+      const { content, metadata } = readNote(args);
+      return { content: [{ type: "text", text: content }], structuredOutput: { content, metadata } };
+    }
+  );
+
+  server.registerTool(
+    "update_note",
+    {
+      title: "Update Note",
+      description: "Update a note in the vault.",
+      inputSchema: updateNoteSchema,
+    },
+    async (args) => {
+      const result = updateNote(args);
+      return {
+        content: [{ type: "text", text: `Note updated: ${result.filepath}` }],
+        structuredOutput: result,
+      };
+    }
+  );
+
+  server.registerTool(
+    "delete_note",
+    {
+      title: "Delete Note",
+      description: "Delete a note from the vault.",
+      inputSchema: deleteNoteSchema,
+    },
+    async (args) => {
+      const result = deleteNote(args);
+      return {
+        content: [{ type: "text", text: `Note deleted: ${result.filepath}` }],
+        structuredOutput: result,
+      };
     }
   );
 
@@ -48,15 +100,11 @@ async function startMcpServer(): Promise<void> {
     {
       title: "Search",
       description: "Semantic (or keyword) search over the knowledge vault. Call before answering questions that may have been covered before.",
-      inputSchema: z.object({
-        query: z.string(),
-        project: z.string().optional().describe("Filter by project"),
-        limit: z.number().optional().describe("Max results (default: 5)"),
-      }),
+      inputSchema: searchSchema,
     },
     async (args) => {
       const result = await search(args, config);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      return { content: [{ type: "text", text: `Search results: ${result.chunks.length}` }], structuredOutput: result };
     }
   );
 
@@ -65,13 +113,11 @@ async function startMcpServer(): Promise<void> {
     {
       title: "Get Context",
       description: "Get hot.md summary + recent notes for a specific project.",
-      inputSchema: z.object({
-        project: z.string(),
-      }),
+      inputSchema: getContextSchema,
     },
     (args) => {
       const result = getContext(args, config);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      return { content: [{ type: "text", text: result.hot }], structuredOutput: result };
     }
   );
 
@@ -80,14 +126,11 @@ async function startMcpServer(): Promise<void> {
     {
       title: "Recent",
       description: "List the N most recently saved notes.",
-      inputSchema: z.object({
-        n: z.number().optional().describe("Number of notes (default: 10)"),
-        project: z.string().optional().describe("Filter by project"),
-      }),
+      inputSchema: recentSchema,
     },
     (args) => {
       const result = recent(args, config);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      return { content: [{ type: "text", text: result.map((n) => `${n.title} - ${n.updated_at}`).join("\n") }], structuredOutput: result };
     }
   );
 
@@ -96,14 +139,11 @@ async function startMcpServer(): Promise<void> {
     {
       title: "List Notes",
       description: "Browse all notes, optionally filtered by project or tags.",
-      inputSchema: z.object({
-        project: z.string().optional(),
-        tags: z.array(z.string()).optional(),
-      }),
+      inputSchema: listNotesSchema,
     },
     (args) => {
       const result = listNotesTool(args, config);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      return { content: [{ type: "text", text: result.map((n) => `${n.title} - ${n.updated_at}`).join("\n") }], structuredOutput: result };
     }
   );
 

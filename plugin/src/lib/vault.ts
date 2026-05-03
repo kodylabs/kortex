@@ -1,6 +1,8 @@
-import { writeFileSync, readFileSync, existsSync, mkdirSync } from "fs";
+import { writeFileSync, readFileSync, existsSync, mkdirSync, unlinkSync } from "fs";
 import { join } from "path";
 import matter from "gray-matter";
+import { markToolWrite } from "./watcher.js";
+import { NoteAuthor } from "../types/note.js";
 import type { Config } from "./config.js";
 
 export interface NoteMetadata {
@@ -9,6 +11,8 @@ export interface NoteMetadata {
   project: string;
   created_at: string;
   updated_at: string;
+  author?: NoteAuthor;
+  human_edited?: boolean;
 }
 
 export function writeNote(
@@ -29,11 +33,13 @@ export function writeNote(
   const filepath = join(dir, filename);
   const now = new Date().toISOString();
 
-  // Check if file exists to preserve created_at
+  // Preserve created_at and sticky human_edited flag when overwriting
   let created_at = now;
+  let human_edited: boolean | undefined;
   if (existsSync(filepath)) {
     const existing = matter(readFileSync(filepath, "utf-8"));
     created_at = (existing.data.created_at as string | undefined) ?? now;
+    if (existing.data.human_edited === true) human_edited = true;
   }
 
   const frontmatter: NoteMetadata = {
@@ -42,12 +48,20 @@ export function writeNote(
     project,
     created_at,
     updated_at: now,
+    author: NoteAuthor.Agent,
+    ...(human_edited ? { human_edited: true } : {}),
   };
 
   const fileContent = matter.stringify(content, frontmatter);
+  markToolWrite(filepath);
   writeFileSync(filepath, fileContent, "utf-8");
 
   return { filepath, note_id: slug };
+}
+
+export function deleteNote(filepath: string): void {
+  markToolWrite(filepath);
+  unlinkSync(filepath);
 }
 
 export function readNote(filepath: string): {

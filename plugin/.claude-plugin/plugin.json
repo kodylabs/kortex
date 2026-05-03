@@ -1,6 +1,6 @@
 {
   "name": "kortex",
-  "description": "Local semantic knowledge base — indexes a vault and exposes save_memory, search, and context tools.",
+  "description": "A shared knowledge base co-written by you and Claude — backed by an Obsidian vault, queryable via semantic search.",
   "version": "0.1.0",
   "author": {
     "name": "Kyllian Senrens"

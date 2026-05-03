@@ -10,5 +10,5 @@ if [ -f "$STAMP" ]; then
 fi
 
 echo "$NOW" > "$STAMP"
-echo "KORTEX: Before closing, check if this session contains anything worth persisting — architecture decisions, solutions to hard problems, important project context. If yes, call save_memory with appropriate project and tags. If nothing relevant, ignore this message." >&2
+echo "KORTEX: Before closing, check whether this session produced anything worth keeping in the shared KB — an architecture decision, a non-obvious fix, durable project context. If so: search first; prefer update_note on an existing related note over create_note; only create if no related note exists. Most sessions yield nothing — ignoring is a valid answer." >&2
 exit 2

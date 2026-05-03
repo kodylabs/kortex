@@ -4,16 +4,17 @@ import { writeNote, generateTitle, updateHotFile } from "../lib/vault.js";
 import { chunkText } from "../lib/chunker.js";
 import { getRecentNotes } from "../lib/db.js";
 import type { Config } from "../lib/config.js";
+import * as z from 'zod/v4';
 
-interface SaveMemoryArgs {
-  content: string;
-  title?: string;
-  tags?: string[];
-  project?: string;
-}
+export const createNoteSchema = z.object({
+  content: z.string().describe("Content of the note"),
+  title: z.string().optional().describe("Title of the note (auto-generated if omitted)"),
+  tags: z.array(z.string()).optional().describe('e.g. ["architecture", "decision"]'),
+  project: z.string().optional().describe("Project to route the note to (default: 'default')"),
+});
 
-export async function saveMemory(
-  args: SaveMemoryArgs,
+export async function createNote(
+  args: z.infer<typeof createNoteSchema>,
   config: Config
 ): Promise<{ note_id: string; filepath: string }> {
   const title = args.title ?? generateTitle(args.content);

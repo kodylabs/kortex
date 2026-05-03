@@ -2,23 +2,24 @@ import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { getDb, getRecentNotes, listNotes } from "../lib/db.js";
 import type { Config } from "../lib/config.js";
+import * as z from 'zod/v4';
 
-interface GetContextArgs {
-  project: string;
-}
+export const getContextSchema = z.object({
+  project: z.string().describe("Project to get context for"),
+});
 
-interface RecentArgs {
-  n?: number;
-  project?: string;
-}
+export const recentSchema = z.object({
+  n: z.number().optional().describe("Number of notes (default: 10)"),
+  project: z.string().optional().describe("Filter by project"),
+});
 
-interface ListNotesArgs {
-  project?: string;
-  tags?: string[];
-}
+export const listNotesSchema = z.object({
+  project: z.string().optional().describe("Filter by project"),
+  tags: z.array(z.string()).optional().describe("Filter by tags"),
+});
 
 export function getContext(
-  args: GetContextArgs,
+  args: z.infer<typeof getContextSchema>,
   config: Config
 ): { hot: string; recent_notes: Array<{ title: string; filepath: string; updated_at: string }> } {
   const hotPath = join(config.vault_path, "hot.md");
@@ -38,7 +39,7 @@ export function getContext(
 }
 
 export function recent(
-  args: RecentArgs,
+  args: z.infer<typeof recentSchema>,
   config: Config
 ): Array<{ title: string; filepath: string; tags: string[]; updated_at: string }> {
   const db = getDb(config);
@@ -46,7 +47,7 @@ export function recent(
 }
 
 export function listNotesTool(
-  args: ListNotesArgs,
+  args: z.infer<typeof listNotesSchema>,
   config: Config
 ): Array<{ title: string; filepath: string; tags: string[]; updated_at: string }> {
   const db = getDb(config);
